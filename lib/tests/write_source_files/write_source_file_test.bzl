@@ -172,7 +172,7 @@ _write_source_file_test = rule(
     test = True,
 )
 
-def write_source_file_test(name, in_file, out_file, check_that_out_file_exists = True):
+def write_source_file_test(name, in_file, out_file, check_that_out_file_exists = True, size = "small", **kwargs):
     """Stamp a write_source_files executable and a test to run against it"""
 
     _write_source_file(
@@ -190,5 +190,6 @@ def write_source_file_test(name, in_file, out_file, check_that_out_file_exists =
         write_source_file_target = name + "_updater",
         in_file = in_file,
         out_file = out_file,
-        timeout = "short",
+        size = size,
+        **kwargs
     )

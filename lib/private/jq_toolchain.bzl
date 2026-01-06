@@ -65,7 +65,7 @@ JqInfo = provider(
 )
 
 def _jq_toolchain_impl(ctx):
-    binary = ctx.attr.bin.files.to_list()[0]
+    binary = ctx.file.bin
 
     # Make the $(JQ_BIN) variable available in places like genrules.
     # See https://docs.bazel.build/versions/main/be/make-variables.html#custom_variables
@@ -121,7 +121,6 @@ def _resolved_toolchain_impl(ctx):
 resolved_toolchain = rule(
     implementation = _resolved_toolchain_impl,
     toolchains = ["@aspect_bazel_lib//lib:jq_toolchain_type"],
-    incompatible_use_toolchain_transition = True,
 )
 """
     rctx.file("defs.bzl", starlark_content)

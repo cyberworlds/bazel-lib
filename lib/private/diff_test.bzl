@@ -21,7 +21,9 @@ The rule uses a Bash command (diff) on Linux/macOS/non-Windows, and a cmd.exe
 command (fc.exe) on Windows (no Bash is required).
 """
 
-load("//lib:utils.bzl", "default_timeout")
+load("@bazel_skylib//lib:shell.bzl", "shell")
+load("@bazel_skylib//lib:types.bzl", "types")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load(":directory_path.bzl", "DirectoryPathInfo")
 
 def _runfiles_path(f):
@@ -72,6 +74,10 @@ def _diff_test_impl(ctx):
             "{file1}": file1_path,
             "{file2}": file2_path,
             "{build_file_path}": ctx.build_file_path,
+            "{diff_args}": " ".join([
+                shell.quote(arg)
+                for arg in ctx.attr.diff_args
+            ]),
         },
         is_executable = True,
     )
@@ -93,6 +99,7 @@ _diff_test = rule(
             allow_files = True,
             mandatory = True,
         ),
+        "diff_args": attr.string_list(),
         "_windows_constraint": attr.label(default = "@platforms//os:windows"),
         "_diff_test_tmpl_sh": attr.label(
             default = ":diff_test_tmpl.sh",
@@ -107,7 +114,7 @@ _diff_test = rule(
     implementation = _diff_test_impl,
 )
 
-def diff_test(name, file1, file2, size = None, timeout = None, **kwargs):
+def diff_test(name, file1, file2, diff_args = [], size = "small", **kwargs):
     """A test that compares two files.
 
     The test succeeds if the files' contents match.
@@ -115,17 +122,25 @@ def diff_test(name, file1, file2, size = None, timeout = None, **kwargs):
     Args:
       name: The name of the test rule.
       file1: Label of the file to compare to <code>file2</code>.
-      file2: Label of the file to compare to <code>file1</code>.
+      file2: Label of the file to compare to <code>file1</code>, or a list of strings which are the lines to expect <code>file1</code> to contain.
+      diff_args: Arguments to pass to the `diff` command. (Ignored on Windows)
       size: standard attribute for tests
-      timeout: standard attribute for tests. Defaults to "short" if both timeout and size are unspecified.
       **kwargs: The <a href="https://docs.bazel.build/versions/main/be/common-definitions.html#common-attributes-tests">common attributes for tests</a>.
     """
+    if types.is_list(file2):
+        write_file2_target = name + ".file2"
+        write_file(
+            name = write_file2_target,
+            out = write_file2_target + ".txt",
+            content = file2,
+        )
+        file2 = write_file2_target
 
     _diff_test(
         name = name,
         file1 = file1,
         file2 = file2,
         size = size,
-        timeout = default_timeout(size, timeout),
+        diff_args = diff_args,
         **kwargs
     )

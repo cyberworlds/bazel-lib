@@ -1,6 +1,6 @@
 "Helpers for generating stardoc documentation"
 
-load("@io_bazel_stardoc//stardoc:stardoc.bzl", _stardoc = "stardoc")
+load("@stardoc//stardoc:stardoc.bzl", _stardoc = "stardoc")
 load("//lib:write_source_files.bzl", "write_source_files")
 
 def stardoc_with_diff_test(
@@ -9,7 +9,7 @@ def stardoc_with_diff_test(
         **kwargs):
     """Creates a stardoc target that can be auto-detected by update_docs to write the generated doc to the source tree and test that it's up to date.
 
-    This is helpful for minimizing boilerplate in repos wih lots of stardoc targets.
+    This is helpful for minimizing boilerplate in repos with lots of stardoc targets.
 
     Args:
         name: the name of the stardoc file to be written to the current source directory (.md will be appended to the name). Call bazel run on this target to update the file.
@@ -20,7 +20,7 @@ def stardoc_with_diff_test(
     target_compatible_with = kwargs.pop("target_compatible_with", select({
         # stardoc produces different line endings on Windows
         # which makes the diff_test fail
-        "@platforms//os:windows": ["@platforms//:incompatible"],
+        Label("@platforms//os:windows"): [Label("@platforms//:incompatible")],
         "//conditions:default": [],
     }))
 
@@ -30,7 +30,7 @@ def stardoc_with_diff_test(
         out = name + "-docgen.md",
         input = bzl_library_target + ".bzl",
         deps = [bzl_library_target],
-        tags = ["package:" + native.package_name()],  # Tag the package name which will help us reconstruct the write_source_files label in update_docs
+        tags = kwargs.pop("tags", []) + ["package:" + native.package_name()],  # Tag the package name which will help us reconstruct the write_source_files label in update_docs
         target_compatible_with = target_compatible_with,
         **kwargs
     )
@@ -42,13 +42,10 @@ def update_docs(name = "update", **kwargs):
     for generating, testing, and updating all doc files as follows:
 
     ``` bash
-    bazel build //{docs_folder}/... && bazel test //{docs_folder}/... && bazel run //{docs_folder}:update
-    ```
-
-    eg.
-
-    ``` bash
-    bazel build //docs/... && bazel test //docs/... && bazel run //docs:update
+    # on CI
+    cd docs; bazel test :all
+    # if it's out-of-date, then
+    cd docs; bazel run update
     ```
 
     Args:

@@ -2,7 +2,6 @@
 
 load("//lib:paths.bzl", "BASH_RLOCATION_FUNCTION", "to_rlocation_path")
 load("//lib:windows_utils.bzl", "create_windows_native_launcher_script")
-load(":expand_locations.bzl", "expand_locations")
 load(":expand_variables.bzl", "expand_variables")
 
 _LAUNCHER_TMPL = """#!/usr/bin/env bash
@@ -28,7 +27,9 @@ export BATS_LIB_PATH=$(
 export BATS_TEST_TIMEOUT="$TEST_TIMEOUT"
 export BATS_TMPDIR="$TEST_TMPDIR"
 
-exec $bats {tests} $@
+# Undocumented: bats can write the JUnit report to any file we specify:
+# https://github.com/bats-core/bats-core/blob/b640ec3cf2c7c9cfc9e6351479261186f76eeec8/libexec/bats-core/bats#L400
+BATS_REPORT_FILENAME="$(basename $XML_OUTPUT_FILE)" exec $bats {tests} --report-formatter junit --output "$(dirname $XML_OUTPUT_FILE)" "$@"
 """
 
 _ENV_SET = """export {key}=\"{value}\""""
@@ -42,7 +43,7 @@ def _bats_test_impl(ctx):
     for (key, value) in ctx.attr.env.items():
         envs.append(_ENV_SET.format(
             key = key,
-            value = " ".join([expand_variables(ctx, exp, attribute_name = "env") for exp in expand_locations(ctx, value, ctx.attr.data).split(" ")]),
+            value = expand_variables(ctx, ctx.expand_location(value, targets = ctx.attr.data), attribute_name = "env"),
         ))
 
     # See https://www.msys2.org/wiki/Porting/:

@@ -7,6 +7,8 @@ Public API for expanding variables
 ## expand_locations
 
 <pre>
+load("@aspect_bazel_lib//lib:expand_make_vars.bzl", "expand_locations")
+
 expand_locations(<a href="#expand_locations-ctx">ctx</a>, <a href="#expand_locations-input">input</a>, <a href="#expand_locations-targets">targets</a>)
 </pre>
 
@@ -29,8 +31,8 @@ This is of the format:
 - `./file`
 - `path/to/file`
 - `external/external_repo/path/to/file`
-- `&lt;bin_dir&gt;/path/to/file`
-- `&lt;bin_dir&gt;/external/external_repo/path/to/file`
+- `<bin_dir>/path/to/file`
+- `<bin_dir>/external/external_repo/path/to/file`
 
 The deprecated `$(location)` and `$(locations)` expansions returns either the execpath or rootpath depending on the context.
 
@@ -42,11 +44,15 @@ The deprecated `$(location)` and `$(locations)` expansions returns either the ex
 | :------------- | :------------- | :------------- |
 | <a id="expand_locations-ctx"></a>ctx |  context   |  none |
 | <a id="expand_locations-input"></a>input |  String to be expanded   |  none |
-| <a id="expand_locations-targets"></a>targets |  List of targets for additional lookup information.   |  <code>[]</code> |
+| <a id="expand_locations-targets"></a>targets |  List of targets for additional lookup information.   |  `[]` |
 
 **RETURNS**
 
 The expanded path or the original path
+
+**DEPRECATED**
+
+Use vanilla `ctx.expand_location(input, targets = targets)` instead
 
 
 <a id="expand_variables"></a>
@@ -54,7 +60,9 @@ The expanded path or the original path
 ## expand_variables
 
 <pre>
-expand_variables(<a href="#expand_variables-ctx">ctx</a>, <a href="#expand_variables-s">s</a>, <a href="#expand_variables-outs">outs</a>, <a href="#expand_variables-attribute_name">attribute_name</a>)
+load("@aspect_bazel_lib//lib:expand_make_vars.bzl", "expand_variables")
+
+expand_variables(<a href="#expand_variables-ctx">ctx</a>, <a href="#expand_variables-s">s</a>, <a href="#expand_variables-outs">outs</a>, <a href="#expand_variables-inputs">inputs</a>, <a href="#expand_variables-attribute_name">attribute_name</a>)
 </pre>
 
 Expand make variables and substitute like genrule does.
@@ -66,6 +74,8 @@ are supported.
 
 This function is the same as ctx.expand_make_variables with the additional
 genrule-like substitutions of:
+
+  - `$<`: The input file if it is a single file. Else triggers a build error.
 
   - `$@`: The output file if it is a single file. Else triggers a build error.
 
@@ -103,8 +113,9 @@ for more information of how these special variables are expanded.
 | :------------- | :------------- | :------------- |
 | <a id="expand_variables-ctx"></a>ctx |  starlark rule context   |  none |
 | <a id="expand_variables-s"></a>s |  expression to expand   |  none |
-| <a id="expand_variables-outs"></a>outs |  declared outputs of the rule, for expanding references to outputs   |  <code>[]</code> |
-| <a id="expand_variables-attribute_name"></a>attribute_name |  name of the attribute containing the expression. Used for error reporting.   |  <code>"args"</code> |
+| <a id="expand_variables-outs"></a>outs |  declared outputs of the rule, for expanding references to outputs   |  `[]` |
+| <a id="expand_variables-inputs"></a>inputs |  declared inputs of the rule, for expanding references to inputs   |  `[]` |
+| <a id="expand_variables-attribute_name"></a>attribute_name |  name of the attribute containing the expression. Used for error reporting.   |  `"args"` |
 
 **RETURNS**
 

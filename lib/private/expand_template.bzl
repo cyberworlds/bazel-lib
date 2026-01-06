@@ -2,24 +2,21 @@
 
 load("@bazel_skylib//lib:dicts.bzl", "dicts")
 load("//lib:stamping.bzl", "STAMP_ATTRS", "maybe_stamp")
-load(":expand_locations.bzl", _expand_locations = "expand_locations")
-load(":expand_variables.bzl", _expand_variables = "expand_variables")
+load(":expand_variables.bzl", "expand_variables")
 
 def _expand_substitutions(ctx, output, substitutions):
     result = {}
     for k, v in substitutions.items():
-        result[k] = " ".join([
-            _expand_variables(ctx, e, outs = [output], attribute_name = "substitutions")
-            for e in _expand_locations(ctx, v, ctx.attr.data).split(" ")
-        ])
+        result[k] = expand_variables(ctx, ctx.expand_location(v, targets = ctx.attr.data), outs = [output], attribute_name = "substitutions")
     return result
 
 def _expand_template_impl(ctx):
     output = ctx.outputs.out
     if not output:
-        if not ctx.file.template or not ctx.file.template.is_source:
-            fail("Template must be a source file if out is not specified")
-        output = ctx.actions.declare_file(ctx.file.template.basename, sibling = ctx.file.template)
+        if ctx.file.template and ctx.file.template.is_source:
+            output = ctx.actions.declare_file(ctx.file.template.basename, sibling = ctx.file.template)
+        else:
+            output = ctx.actions.declare_file(ctx.attr.name + ".txt")
 
     substitutions = _expand_substitutions(ctx, output, ctx.attr.substitutions)
     expand_template_info = ctx.toolchains["@aspect_bazel_lib//lib:expand_template_toolchain_type"].expand_template_info
@@ -52,6 +49,7 @@ def _expand_template_impl(ctx):
             outputs = [output],
             inputs = inputs,
             executable = expand_template_info.bin,
+            toolchain = "@aspect_bazel_lib//lib:expand_template_toolchain_type",
         )
     else:
         ctx.actions.expand_template(
@@ -62,8 +60,21 @@ def _expand_template_impl(ctx):
         )
 
     all_outs = [output]
-    runfiles = ctx.runfiles(files = all_outs)
-    return [DefaultInfo(files = depset(all_outs), runfiles = runfiles)]
+
+    runfiles = ctx.runfiles(
+        files = all_outs,
+        transitive_files = depset(transitive = [
+            target[DefaultInfo].files
+            for target in ctx.attr.data
+        ]),
+    )
+    return [DefaultInfo(
+        files = depset(all_outs),
+        runfiles = runfiles.merge_all([
+            target[DefaultInfo].default_runfiles
+            for target in ctx.attr.data
+        ]),
+    )]
 
 expand_template_lib = struct(
     doc = """Template expansion
@@ -72,10 +83,10 @@ This performs a simple search over the template file for the keys in substitutio
 and replaces them with the corresponding values.
 
 Values may also use location templates as documented in
-[expand_locations](https://github.com/aspect-build/bazel-lib/blob/main/docs/expand_make_vars.md#expand_locations)
+[expand_locations](https://github.com/bazel-contrib/bazel-lib/blob/main/docs/expand_make_vars.md#expand_locations)
 as well as [configuration variables](https://docs.bazel.build/versions/main/skylark/lib/ctx.html#var)
 such as `$(BINDIR)`, `$(TARGET_CPU)`, and `$(COMPILATION_MODE)` as documented in
-[expand_variables](https://github.com/aspect-build/bazel-lib/blob/main/docs/expand_make_vars.md#expand_variables).
+[expand_variables](https://github.com/bazel-contrib/bazel-lib/blob/main/docs/expand_make_vars.md#expand_variables).
 """,
     implementation = _expand_template_impl,
     toolchains = ["@aspect_bazel_lib//lib:expand_template_toolchain_type"],
@@ -90,17 +101,20 @@ such as `$(BINDIR)`, `$(TARGET_CPU)`, and `$(COMPILATION_MODE)` as documented in
         "out": attr.output(
             doc = """Where to write the expanded file.
 
-            If unset, the template must be a source file and the output file
-            will be named the same as the template file and outputted to the same
+            If the `template` is a source file, then `out` defaults to
+            be named the same as the template file and outputted to the same
             workspace-relative path. In this case there will be no pre-declared
             label for the output file. It can be referenced by the target label
             instead. This pattern is similar to `copy_to_bin` but with substitutions on
-            the copy.""",
+            the copy.
+
+            Otherwise, `out` defaults to `[name].txt`.
+            """,
         ),
         "stamp_substitutions": attr.string_dict(
             doc = """Mapping of strings to substitutions.
 
-            There are overlayed on top of substitutions when stamping is enabled
+            There are overlaid on top of substitutions when stamping is enabled
             for the target.
 
             Substitutions can contain $(execpath :target) and $(rootpath :target)

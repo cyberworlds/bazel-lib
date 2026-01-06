@@ -2,6 +2,7 @@
 
 load("@aspect_bazel_lib//lib:diff_test.bzl", "diff_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//lib:run_binary.bzl", "run_binary")
 
 sh_binary(
@@ -24,6 +25,7 @@ run_binary(
     outs = ["expansions_out"],
     args = [
         "$@",
+        "$<",
         "$(@D)",
         "$(rootpath :gen_src_1)",
         "$(rootpaths :gen_src_1)",
@@ -53,6 +55,9 @@ run_binary(
     },
     progress_message = "doing some work to make %{output}",
     tool = ":expansions_sh",
+    # May introduce non-determinism; use with care!
+    # See e.g. https://github.com/bazelbuild/bazel/issues/4912
+    use_default_shell_env = True,
 )
 
 diff_test(

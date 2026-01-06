@@ -2,8 +2,6 @@
 
 The `.bazelrc` files found here are the source-of-truth for our recommended Bazel presets.
 
-They are mirrored on our docsite at https://docs.aspect.build/guides/bazelrc.
-
 ## Using Aspect bazelrc presets in your project
 
 The `.bazelrc` file can get large, fast.
@@ -13,7 +11,7 @@ and some vary depending on the version of Bazel you use or languages used.
 Bazel rc files can contain `import` statements, which allow you to organize the content better.
 
 To use these presets in your project, simply vendor the `*.bazelrc` files from
-https://github.com/aspect-build/bazel-lib/tree/main/.aspect/bazelrc into the
+https://github.com/bazel-contrib/bazel-lib/tree/main/.aspect/bazelrc into the
 `.aspect/bazelrc` folder in your repository and `import` them in your `.bazelrc` file.
 
 For example,

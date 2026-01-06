@@ -7,6 +7,8 @@ Utilities for strings
 ## chr
 
 <pre>
+load("@aspect_bazel_lib//lib:strings.bzl", "chr")
+
 chr(<a href="#chr-i">i</a>)
 </pre>
 
@@ -33,10 +35,12 @@ unicode string of the position
 ## hex
 
 <pre>
+load("@aspect_bazel_lib//lib:strings.bzl", "hex")
+
 hex(<a href="#hex-number">number</a>)
 </pre>
 
-Format integer to hexdecimal representation
+Format integer to hexadecimal representation
 
 **PARAMETERS**
 
@@ -47,7 +51,7 @@ Format integer to hexdecimal representation
 
 **RETURNS**
 
-hexdecimal representation of the number argument
+hexadecimal representation of the number argument
 
 
 <a id="ord"></a>
@@ -55,6 +59,8 @@ hexdecimal representation of the number argument
 ## ord
 
 <pre>
+load("@aspect_bazel_lib//lib:strings.bzl", "ord")
+
 ord(<a href="#ord-c">c</a>)
 </pre>
 
@@ -78,5 +84,33 @@ Unicode replacement character, U+FFFD.
 **RETURNS**
 
 codepoint of `c` argument.
+
+
+<a id="split_args"></a>
+
+## split_args
+
+<pre>
+load("@aspect_bazel_lib//lib:strings.bzl", "split_args")
+
+split_args(<a href="#split_args-s">s</a>)
+</pre>
+
+Split a string into a list space separated arguments
+
+Unlike the naive `.split(" ")`, this function takes quoted strings
+and escapes into account.
+
+
+**PARAMETERS**
+
+
+| Name  | Description | Default Value |
+| :------------- | :------------- | :------------- |
+| <a id="split_args-s"></a>s |  input string   |  none |
+
+**RETURNS**
+
+list of strings with each an argument found in the input string
 
 

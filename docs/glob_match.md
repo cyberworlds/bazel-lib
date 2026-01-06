@@ -7,6 +7,8 @@ Public API
 ## glob_match
 
 <pre>
+load("@aspect_bazel_lib//lib:glob_match.bzl", "glob_match")
+
 glob_match(<a href="#glob_match-expr">expr</a>, <a href="#glob_match-path">path</a>, <a href="#glob_match-match_path_separator">match_path_separator</a>)
 </pre>
 
@@ -26,7 +28,7 @@ Test if the passed path matches the glob expression.
 | :------------- | :------------- | :------------- |
 | <a id="glob_match-expr"></a>expr |  the glob expression   |  none |
 | <a id="glob_match-path"></a>path |  the path against which to match the glob expression   |  none |
-| <a id="glob_match-match_path_separator"></a>match_path_separator |  whether or not to match the path separator '/' when matching <code>*</code> and <code>?</code> expressions   |  <code>False</code> |
+| <a id="glob_match-match_path_separator"></a>match_path_separator |  whether or not to match the path separator '/' when matching `*` and `?` expressions   |  `False` |
 
 **RETURNS**
 
@@ -38,10 +40,12 @@ True if the path matches the glob expression
 ## is_glob
 
 <pre>
+load("@aspect_bazel_lib//lib:glob_match.bzl", "is_glob")
+
 is_glob(<a href="#is_glob-expr">expr</a>)
 </pre>
 
-Determine if the passed string is a globa expression
+Determine if the passed string is a global expression
 
 **PARAMETERS**
 
@@ -52,6 +56,6 @@ Determine if the passed string is a globa expression
 
 **RETURNS**
 
-True if the passed string is a globa expression
+True if the passed string is a global expression
 
 

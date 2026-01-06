@@ -10,6 +10,7 @@ load("//lib/private:jq_toolchain.bzl", "JQ_PLATFORMS", "jq_host_alias_repo", "jq
 load("//lib/private:source_toolchains_repo.bzl", "source_toolchains_repo")
 load("//lib/private:tar_toolchain.bzl", "BSDTAR_PLATFORMS", "bsdtar_binary_repo", "tar_toolchains_repo")
 load("//lib/private:yq_toolchain.bzl", "YQ_PLATFORMS", "yq_host_alias_repo", "yq_platform_repo", "yq_toolchains_repo", _DEFAULT_YQ_VERSION = "DEFAULT_YQ_VERSION")
+load("//lib/private:zstd_toolchain.bzl", "ZSTD_PLATFORMS", "zstd_binary_repo", "zstd_toolchains_repo")
 load("//tools:version.bzl", "IS_PRERELEASE")
 
 # buildifier: disable=unnamed-macro
@@ -18,11 +19,49 @@ def aspect_bazel_lib_dependencies():
 
     http_archive(
         name = "bazel_skylib",
-        sha256 = "66ffd9315665bfaafc96b52278f57c7e2dd09f5ede279ea6d39b2be471e7e3aa",
+        sha256 = "bc283cdfcd526a52c3201279cda4bc298652efa898b10b4db0837dc51652756f",
         urls = [
-            "https://github.com/bazelbuild/bazel-skylib/releases/download/1.4.2/bazel-skylib-1.4.2.tar.gz",
-            "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.4.2/bazel-skylib-1.4.2.tar.gz",
+            "https://github.com/bazelbuild/bazel-skylib/releases/download/1.7.1/bazel-skylib-1.7.1.tar.gz",
+            "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.7.1/bazel-skylib-1.7.1.tar.gz",
         ],
+    )
+    http_archive(
+        name = "platforms",
+        urls = [
+            "https://mirror.bazel.build/github.com/bazelbuild/platforms/releases/download/1.0.0/platforms-1.0.0.tar.gz",
+            "https://github.com/bazelbuild/platforms/releases/download/1.0.0/platforms-1.0.0.tar.gz",
+        ],
+        sha256 = "3384eb1c30762704fbe38e440204e114154086c8fc8a8c2e3e28441028c019a8",
+    )
+    http_archive(
+        name = "bazel_lib",
+        sha256 = "6fd3b1e1a38ca744f9664be4627ced80895c7d2ee353891c172f1ab61309c933",
+        strip_prefix = "bazel-lib-3.0.0",
+        url = "https://github.com/bazel-contrib/bazel-lib/releases/download/v3.0.0/bazel-lib-v3.0.0.tar.gz",
+    )
+    http_archive(
+        name = "tar.bzl",
+        sha256 = "b47e3c83a0c1440ce335aa1ae18753da6eb7cd551d4946fa303de2abde07e20b",
+        strip_prefix = "tar.bzl-0.5.1",
+        url = "https://github.com/bazel-contrib/tar.bzl/releases/download/v0.5.1/tar.bzl-v0.5.1.tar.gz",
+    )
+    http_archive(
+        name = "jq.bzl",
+        sha256 = "7b63435aa19cc6a0cfd1a82fbdf2c7a2f0a94db1a79ff7a4469ffa94286261ab",
+        strip_prefix = "jq.bzl-0.1.0",
+        url = "https://github.com/bazel-contrib/jq.bzl/releases/download/v0.1.0/jq.bzl-v0.1.0.tar.gz",
+    )
+    http_archive(
+        name = "yq.bzl",
+        sha256 = "b51d82b561a78ab21d265107b0edbf98d68a390b4103992d0b03258bb3819601",
+        strip_prefix = "yq.bzl-0.1.1",
+        url = "https://github.com/bazel-contrib/yq.bzl/releases/download/v0.1.1/yq.bzl-v0.1.1.tar.gz",
+    )
+    http_archive(
+        name = "rules_shell",
+        sha256 = "bc61ef94facc78e20a645726f64756e5e285a045037c7a61f65af2941f4c25e1",
+        strip_prefix = "rules_shell-0.4.1",
+        url = "https://github.com/bazelbuild/rules_shell/releases/download/v0.4.1/rules_shell-v0.4.1.tar.gz",
     )
 
 DEFAULT_JQ_REPOSITORY = "jq"
@@ -37,7 +76,7 @@ def register_jq_toolchains(name = DEFAULT_JQ_REPOSITORY, version = DEFAULT_JQ_VE
         register: whether to call through to native.register_toolchains.
             Should be True for WORKSPACE users, but false when used under bzlmod extension
     """
-    for [platform, meta] in JQ_PLATFORMS.items():
+    for [platform, _] in JQ_PLATFORMS.items():
         jq_platform_repo(
             name = "%s_%s" % (name, platform),
             platform = platform,
@@ -65,7 +104,7 @@ def register_yq_toolchains(name = DEFAULT_YQ_REPOSITORY, version = DEFAULT_YQ_VE
         register: whether to call through to native.register_toolchains.
             Should be True for WORKSPACE users, but false when used under bzlmod extension
     """
-    for [platform, meta] in YQ_PLATFORMS.items():
+    for [platform, _] in YQ_PLATFORMS.items():
         yq_platform_repo(
             name = "%s_%s" % (name, platform),
             platform = platform,
@@ -91,7 +130,7 @@ def register_tar_toolchains(name = DEFAULT_TAR_REPOSITORY, register = True):
         register: whether to call through to native.register_toolchains.
             Should be True for WORKSPACE users, but false when used under bzlmod extension
     """
-    for [platform, meta] in BSDTAR_PLATFORMS.items():
+    for [platform, _] in BSDTAR_PLATFORMS.items():
         bsdtar_binary_repo(
             name = "%s_%s" % (name, platform),
             platform = platform,
@@ -100,6 +139,29 @@ def register_tar_toolchains(name = DEFAULT_TAR_REPOSITORY, register = True):
             native.register_toolchains("@%s_toolchains//:%s_toolchain" % (name, platform))
 
     tar_toolchains_repo(
+        name = "%s_toolchains" % name,
+        user_repository_name = name,
+    )
+
+DEFAULT_ZSTD_REPOSITORY = "zstd"
+
+def register_zstd_toolchains(name = DEFAULT_ZSTD_REPOSITORY, register = True):
+    """Registers zstd toolchain and repositories
+
+    Args:
+        name: override the prefix for the generated toolchain repositories
+        register: whether to call through to native.register_toolchains.
+            Should be True for WORKSPACE users, but false when used under bzlmod extension
+    """
+    for [platform, _] in ZSTD_PLATFORMS.items():
+        zstd_binary_repo(
+            name = "%s_%s" % (name, platform),
+            platform = platform,
+        )
+        if register:
+            native.register_toolchains("@%s_toolchains//:%s_toolchain" % (name, platform))
+
+    zstd_toolchains_repo(
         name = "%s_toolchains" % name,
         user_repository_name = name,
     )
@@ -191,7 +253,7 @@ def register_coreutils_toolchains(name = DEFAULT_COREUTILS_REPOSITORY, version =
         register: whether to call through to native.register_toolchains.
             Should be True for WORKSPACE users, but false when used under bzlmod extension
     """
-    for [platform, meta] in COREUTILS_PLATFORMS.items():
+    for [platform, _] in COREUTILS_PLATFORMS.items():
         coreutils_platform_repo(
             name = "%s_%s" % (name, platform),
             platform = platform,
@@ -227,7 +289,7 @@ def register_copy_directory_toolchains(name = DEFAULT_COPY_DIRECTORY_REPOSITORY,
             native.register_toolchains("@%s_toolchains//:toolchain" % name)
         return
 
-    for [platform, meta] in COPY_DIRECTORY_PLATFORMS.items():
+    for [platform, _] in COPY_DIRECTORY_PLATFORMS.items():
         copy_directory_platform_repo(
             name = "%s_%s" % (name, platform),
             platform = platform,
@@ -262,7 +324,7 @@ def register_copy_to_directory_toolchains(name = DEFAULT_COPY_TO_DIRECTORY_REPOS
             native.register_toolchains("@%s_toolchains//:toolchain" % name)
         return
 
-    for [platform, meta] in COPY_TO_DIRECTORY_PLATFORMS.items():
+    for [platform, _] in COPY_TO_DIRECTORY_PLATFORMS.items():
         copy_to_directory_platform_repo(
             name = "%s_%s" % (name, platform),
             platform = platform,
@@ -297,7 +359,7 @@ def register_expand_template_toolchains(name = DEFAULT_EXPAND_TEMPLATE_REPOSITOR
             native.register_toolchains("@%s_toolchains//:toolchain" % name)
         return
 
-    for [platform, meta] in EXPAND_TEMPLATE_PLATFORMS.items():
+    for [platform, _] in EXPAND_TEMPLATE_PLATFORMS.items():
         expand_template_platform_repo(
             name = "%s_%s" % (name, platform),
             platform = platform,
@@ -324,4 +386,5 @@ def aspect_bazel_lib_register_toolchains():
     register_jq_toolchains()
     register_yq_toolchains()
     register_tar_toolchains()
+    register_zstd_toolchains()
     register_bats_toolchains()

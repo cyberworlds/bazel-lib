@@ -1,7 +1,8 @@
 """unit tests for lists"""
 
+load("@bazel_skylib//lib:partial.bzl", "partial")
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
-load("//lib/private:lists.bzl", "every", "filter", "find", "map", "once", "pick", "some")
+load("//lib/private:lists.bzl", "every", "filter", "find", "map", "once", "pick", "some", "unique")
 
 def _every_test_impl(ctx):
     env = unittest.begin(ctx)
@@ -70,14 +71,24 @@ def _some_test_impl(ctx):
 
 some_test = unittest.make(_some_test_impl)
 
+def _unique_test_impl(ctx):
+    env = unittest.begin(ctx)
+
+    asserts.equals(env, unique(["foo", {"bar": "baz"}, 42, {"bar": "baz"}, "foo"]), ["foo", {"bar": "baz"}, 42])
+
+    return unittest.end(env)
+
+unique_test = unittest.make(_unique_test_impl)
+
 def lists_test_suite():
     unittest.suite(
         "lists_tests",
-        every_test,
-        filter_test,
-        find_test,
-        map_test,
-        once_test,
-        pick_test,
-        some_test,
+        partial.make(every_test, timeout = "short"),
+        partial.make(filter_test, timeout = "short"),
+        partial.make(find_test, timeout = "short"),
+        partial.make(map_test, timeout = "short"),
+        partial.make(once_test, timeout = "short"),
+        partial.make(pick_test, timeout = "short"),
+        partial.make(some_test, timeout = "short"),
+        partial.make(unique_test, timeout = "short"),
     )

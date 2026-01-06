@@ -20,7 +20,11 @@ def write_source_file(
         additional_update_targets = [],
         suggested_update_target = None,
         diff_test = True,
+        diff_test_failure_message = "{{DEFAULT_MESSAGE}}",
+        file_missing_failure_message = "{{DEFAULT_MESSAGE}}",
+        diff_args = [],
         check_that_out_file_exists = True,
+        verbosity = "full",
         **kwargs):
     """Write a file or directory to the source tree.
 
@@ -48,10 +52,30 @@ def write_source_file(
 
         diff_test: Test that the source tree file or directory exist and is up to date.
 
+        diff_test_failure_message: Text to print when the diff test fails, with templating options for
+            relevant targets.
+
+            Substitutions are performed on the failure message, with the following substitutions being available:
+
+            `{{DEFAULT_MESSAGE}}`: Prints the default error message, listing the target(s) that
+              may be run to update the file(s).
+
+            `{{TARGET}}`: The target to update the individual file that does not match in the
+              diff test.
+
+            `{{SUGGESTED_UPDATE_TARGET}}`: The suggested_update_target if specified.
+
+        file_missing_failure_message: Text to print when the output file is missing. Subject to the same
+             substitutions as diff_test_failure_message.
+
+        diff_args: Arguments to pass to the `diff` command. (Ignored on Windows)
+
         check_that_out_file_exists: Test that the output file exists and print a helpful error message if it doesn't.
 
             If `True`, the output file or directory must be in the same containing Bazel package as the target since the underlying mechanism
             for this check is limited to files in the same Bazel package.
+
+        verbosity: Verbosity of message when the copy target is run. One of `full`, `short`, `quiet`.
 
         **kwargs: Other common named parameters such as `tags` or `visibility`
 
@@ -83,6 +107,7 @@ def write_source_file(
         out_file = str(out_file) if out_file else None,
         executable = executable,
         additional_update_targets = additional_update_targets,
+        verbosity = verbosity,
         **kwargs
     )
 
@@ -92,17 +117,20 @@ def write_source_file(
     out_file_missing = check_that_out_file_exists and _is_file_missing(out_file)
     test_target_name = "%s_test" % name
 
+    update_target_string = "//%s:%s" % (native.package_name(), name)
+    suggested_update_target_string = str(utils.to_label(suggested_update_target)) if suggested_update_target else None
+
     if out_file_missing:
         if suggested_update_target == None:
-            message = """
+            default_message = """
 
 %s does not exist. To create & update this file, run:
 
-    bazel run //%s:%s
+    bazel run %s
 
-""" % (out_file, native.package_name(), name)
+""" % (out_file, update_target_string)
         else:
-            message = """
+            default_message = """
 
 %s does not exist. To create & update this and other generated files, run:
 
@@ -110,9 +138,11 @@ def write_source_file(
 
 To create an update *only* this file, run:
 
-    bazel run //%s:%s
+    bazel run %s
 
-""" % (out_file, utils.to_label(suggested_update_target), native.package_name(), name)
+""" % (out_file, suggested_update_target_string, update_target_string)
+
+        message = _do_diff_test_message_replacements(file_missing_failure_message, default_message, update_target_string, suggested_update_target_string)
 
         # Stamp out a test that fails with a helpful message when the source file doesn't exist.
         # Note that we cannot simply call fail() here since it will fail during the analysis
@@ -122,18 +152,19 @@ To create an update *only* this file, run:
             message = message,
             visibility = kwargs.get("visibility"),
             tags = kwargs.get("tags"),
+            size = "small",
         )
     else:
         if suggested_update_target == None:
-            message = """
+            default_message = """
 
 %s is out of date. To update this file, run:
 
-    bazel run //%s:%s
+    bazel run %s
 
-""" % (out_file, native.package_name(), name)
+""" % (out_file, update_target_string)
         else:
-            message = """
+            default_message = """
 
 %s is out of date. To update this and other generated files, run:
 
@@ -141,9 +172,11 @@ To create an update *only* this file, run:
 
 To update *only* this file, run:
 
-    bazel run //%s:%s
+    bazel run %s
 
-""" % (out_file, utils.to_label(suggested_update_target), native.package_name(), name)
+""" % (out_file, suggested_update_target_string, update_target_string)
+
+        message = _do_diff_test_message_replacements(diff_test_failure_message, default_message, update_target_string, suggested_update_target_string)
 
         # Stamp out a diff test the check that the source file is up to date
         _diff_test(
@@ -151,6 +184,7 @@ To update *only* this file, run:
             file1 = in_file,
             file2 = out_file,
             failure_message = message,
+            diff_args = diff_args,
             **kwargs
         )
 
@@ -163,7 +197,7 @@ _write_source_file_attrs = {
     # out_file in the list of source file deps. ibazel uses this query to determine
     # which source files to watch so if the out_file is returned then ibazel watches
     # and it goes into an infinite update, notify loop when running this target.
-    # See https://github.com/aspect-build/bazel-lib/pull/52 for more context.
+    # See https://github.com/bazel-contrib/bazel-lib/pull/52 for more context.
     "out_file": attr.string(mandatory = False),
     "executable": attr.bool(),
     # buildifier: disable=attr-cfg
@@ -175,6 +209,9 @@ _write_source_file_attrs = {
         cfg = "target",
         mandatory = False,
         providers = [WriteSourceFileInfo],
+    ),
+    "verbosity": attr.string(
+        values = ["full", "short", "quiet"],
     ),
     "_windows_constraint": attr.label(default = "@platforms//os:windows"),
     "_macos_constraint": attr.label(default = "@platforms//os:macos"),
@@ -201,7 +238,7 @@ fi"""]
 
     if ctx.attr.executable:
         executable_file = "chmod +x \"$out\""
-        executable_dir = "chmod -R +x \"$out\"/*"
+        executable_dir = "chmod -R +x \"$out\""
     else:
         executable_file = "chmod -x \"$out\""
         if is_macos:
@@ -209,7 +246,16 @@ fi"""]
             executable_dir = "find \"$out\" -type f | xargs chmod -x"
         else:
             # Remove execute/search bit recursively from files bit not directories: https://superuser.com/a/434418
-            executable_dir = "chmod -R -x+X \"$out\"/*"
+            executable_dir = "chmod -R -x+X \"$out\""
+
+    progress_message_dir = ""
+    progress_message_file = ""
+    if ctx.attr.verbosity == "full":
+        progress_message_dir = "echo \"Copying directory $in to $out in $PWD\""
+        progress_message_file = "echo \"Copying file $in to $out in $PWD\""
+    elif ctx.attr.verbosity == "short":
+        progress_message_dir = "echo \"Updating directory $out\""
+        progress_message_file = "echo \"Updating file $out\""
 
     for in_path, out_path in paths:
         contents.append("""
@@ -218,19 +264,23 @@ out={out_path}
 
 mkdir -p "$(dirname "$out")"
 if [[ -f "$in" ]]; then
-    echo "Copying file $in to $out in $PWD"
+    {progress_message_file}
+    # in case `cp` from previous command was terminated midway which can result in read-only files/dirs
+    chmod -R +w "$out" > /dev/null 2>&1 || true
     rm -Rf "$out"
     cp -f "$in" "$out"
     # cp should make the file writable but call chmod anyway as a defense in depth
-    chmod ug+w "$out"
+    chmod +w "$out"
     # cp should make the file not-executable but set the desired execute bit in both cases as a defense in depth
     {executable_file}
 else
-    echo "Copying directory $in to $out in $PWD"
-    rm -Rf "$out"/*
+    {progress_message_dir}
+    # in case `cp` from previous command was terminated midway which can result in read-only files/dirs
+    chmod -R +w "$out" > /dev/null 2>&1 || true
+    rm -Rf "$out"/{{*,.[!.]*}}
     mkdir -p "$out"
-    cp -fRL "$in"/* "$out"
-    chmod -R ug+w "$out"/*
+    cp -fRL "$in"/. "$out"
+    chmod -R +w "$out"
     {executable_dir}
 fi
 """.format(
@@ -238,6 +288,8 @@ fi
             out_path = out_path,
             executable_file = executable_file,
             executable_dir = executable_dir,
+            progress_message_dir = progress_message_dir,
+            progress_message_file = progress_message_file,
         ))
 
     contents.extend([
@@ -271,8 +323,14 @@ def _write_source_file_bat(ctx, paths):
 @echo off
 set runfiles_dir=%cd%
 if defined BUILD_WORKSPACE_DIRECTORY (
-    cd %BUILD_WORKSPACE_DIRECTORY%
+    cd /d %BUILD_WORKSPACE_DIRECTORY%
 )"""]
+
+    progress_message = ""
+    if ctx.attr.verbosity == "full":
+        progress_message = "echo Copying %in% to %out% in %cd%"
+    elif ctx.attr.verbosity == "short":
+        progress_message = "echo Updating %out%"
 
     for in_path, out_path in paths:
         contents.append("""
@@ -287,7 +345,7 @@ if not defined BUILD_WORKSPACE_DIRECTORY (
     del %out%
 )
 
-echo Copying %in% to %out% in %cd%
+{progress_message}
 
 if exist "%in%\\*" (
     mkdir "%out%" >NUL 2>NUL
@@ -295,10 +353,14 @@ if exist "%in%\\*" (
 ) else (
     copy %in% %out% >NUL
 )
-""".format(in_path = in_path.replace("/", "\\"), out_path = out_path.replace("/", "\\")))
+""".format(
+            in_path = in_path.replace("/", "\\"),
+            out_path = out_path.replace("/", "\\"),
+            progress_message = progress_message,
+        ))
 
     contents.extend([
-        "cd %runfiles_dir%",
+        "cd /d %runfiles_dir%",
         "@rem Run the update scripts for all write_source_file deps",
     ])
     for update_script in additional_update_scripts:
@@ -389,3 +451,16 @@ def _is_file_missing(label):
         subpackage_glob = native.subpackages(include = [file_rel], allow_empty = True)
 
     return len(file_glob) == 0 and len(subpackage_glob) == 0
+
+def _do_diff_test_message_replacements(message, default_message, target, suggested_update_target):
+    """Constructs the diff test failures message from the provided template.
+
+     Replaces the {{DEFAULT_MESSAGE}}, {{TARGET}}, and {{SUGGESTED_UPDATE_TARGET}} strings in
+     message with the corresponding arguments.
+
+     Args:
+         message: The user-provided message to do template replacement on.
+         default_message: The message to fill in for the {{DEFAULT_MESSAGE}} parameter.
+         target: The string to fill in for the {{TARGET}} parameter.
+         suggested_update_target: The string to fill in for the {{SUGGESTED_UPDATE_TARGET}} parameter."""
+    return message.replace("{{DEFAULT_MESSAGE}}", default_message).replace("{{TARGET}}", target).replace("{{SUGGESTED_UPDATE_TARGET}}", suggested_update_target if suggested_update_target else "")

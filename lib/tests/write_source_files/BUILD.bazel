@@ -101,20 +101,43 @@ output_files(
     target = ":g_h-desired",
 )
 
+genrule(
+    name = "hidden-contained",
+    outs = [".hidden"],
+    cmd = "echo 'hidden file test' > $@",
+)
+
+copy_to_directory(
+    name = "hidden_dir-desired",
+    srcs = [
+        ":hidden-contained",
+    ],
+)
+
 write_source_file_test(
     name = "a_test",
     in_file = ":a-desired",
     out_file = "a.js",
+    target_compatible_with = select({
+        "@aspect_bazel_lib//lib:enable_runfiles": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
 )
 
 write_source_file_test(
     name = "b_test",
     in_file = ":b-desired",
     out_file = "b.js",
+    target_compatible_with = select({
+        "@aspect_bazel_lib//lib:enable_runfiles": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
 )
 
 write_source_file(
     name = "e_dir_test",
+    diff_test_failure_message = "\nSample failure message for {{TARGET}}. Default message:\n{{DEFAULT_MESSAGE}}",
+    file_missing_failure_message = "\nSample failure message for a missing {{TARGET}}. Default message:\n{{DEFAULT_MESSAGE}}",
     in_file = ":e_dir-desired",
     out_file = "e_dir",
 )
@@ -129,12 +152,26 @@ write_source_file_test(
     name = "f_test",
     in_file = ":f-desired",
     out_file = "f.js",
+    target_compatible_with = select({
+        "@aspect_bazel_lib//lib:enable_runfiles": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
 )
 
 write_source_file_test(
     name = "g_test",
     in_file = ":g-desired",
     out_file = "g.js",
+    target_compatible_with = select({
+        "@aspect_bazel_lib//lib:enable_runfiles": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+)
+
+write_source_file(
+    name = "hidden_dir_test",
+    in_file = ":hidden_dir-desired",
+    out_file = "hidden_dir",
 )
 
 write_source_files(
@@ -142,6 +179,7 @@ write_source_files(
     additional_update_targets = [
         "//lib/tests/write_source_files/subdir:macro_smoke_test",
     ],
+    diff_test_failure_message = "\nSample failure message for {{TARGET}} of {{SUGGESTED_UPDATE_TARGET}}. Default message:\n{{DEFAULT_MESSAGE}}",
     files = {
         "a2.js": ":a-desired",
         "b2.js": ":b-desired",
@@ -150,6 +188,10 @@ write_source_files(
         "f2.js": ":f-desired",
         "g2.js": ":g-desired",
     },
+    target_compatible_with = select({
+        "@aspect_bazel_lib//lib:enable_runfiles": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
 )
 
 genrule(
@@ -211,6 +253,10 @@ write_source_file_test(
     check_that_out_file_exists = False,
     in_file = ":a-desired",
     out_file = "//lib/tests/write_source_files/subpkg:a.js",
+    target_compatible_with = select({
+        "@aspect_bazel_lib//lib:enable_runfiles": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
 )
 
 # Test that we can write to a parent package
@@ -219,4 +265,8 @@ write_source_file_test(
     check_that_out_file_exists = False,
     in_file = ":a-desired",
     out_file = "//lib/tests:a.js",
+    target_compatible_with = select({
+        "@aspect_bazel_lib//lib:enable_runfiles": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
 )

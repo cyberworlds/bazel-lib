@@ -3,16 +3,21 @@
   "maintainers": [
     {
       "name": "Alex Eagle",
-      "email": "alex@aspect.dev",
+      "email": "alex@aspect.build",
       "github": "alexeagle"
     },
     {
       "name": "Derek Cormier",
-      "email": "derek@aspect.dev",
+      "email": "derek@aspect.build",
       "github": "kormide"
+    },
+    {
+      "name": "Jason Bedard",
+      "email": "jason@aspect.build",
+      "github": "jbedard"
     }
   ],
-  "repository": ["github:aspect-build/bazel-lib"],
+  "repository": ["github:bazel-contrib/bazel-lib"],
   "versions": [],
   "yanked_versions": {}
 }
