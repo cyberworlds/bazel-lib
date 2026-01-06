@@ -146,7 +146,7 @@ def patch(ctx, patches = None, patch_cmds = None, patch_cmds_win = None, patch_t
         new_patches = patches
         if patch_directory:
             new_patches = []
-            
+
             i = 0
             for patchfile in patches:
                 patch_content = ctx.read(patchfile)
@@ -155,7 +155,7 @@ def patch(ctx, patches = None, patch_cmds = None, patch_cmds_win = None, patch_t
                     strip = int(patch_args[-1][2:])
                 else:
                     strip = 0
-                
+
                 new_patch_content_lines = []
                 for patch_content_line in patch_content.splitlines(True):
                     if patch_content_line.startswith("+++ ") or patch_content_line.startswith("--- "):
