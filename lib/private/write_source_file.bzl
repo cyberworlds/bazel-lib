@@ -151,7 +151,9 @@ To create an update *only* this file, run:
             name = test_target_name,
             message = message,
             visibility = kwargs.get("visibility"),
-            tags = kwargs.get("tags"),
+            # NOTE(calebmer): Make sure all `write_source_file()` tests are run by
+            # `dev test`.
+            tags = kwargs.get("tags", []) + ["dev-test"],
             size = "small",
         )
     else:
@@ -185,6 +187,9 @@ To update *only* this file, run:
             file2 = out_file,
             failure_message = message,
             diff_args = diff_args,
+            # NOTE(calebmer): Make sure all `write_source_file()` tests are run by
+            # `dev test`.
+            tags = kwargs.get("tags", []) + ["dev-test"],
             **kwargs
         )
 
